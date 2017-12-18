@@ -27,9 +27,10 @@
  * DEALINGS IN THE SOFTWARE.
  ****************************************************************************/
 
+#include <atomic>
+
 #include "cpl_string.h"
 #include "cpl_http.h"
-#include "cpl_atomic_ops.h"
 #include "gdal_frmts.h"
 #include "gdal_pam.h"
 
@@ -71,7 +72,7 @@ static const char* HTTPFetchContentDispositionFilename(char** papszHeaders)
 static GDALDataset *HTTPOpen( GDALOpenInfo * poOpenInfo )
 
 {
-    static volatile int nCounter = 0;
+    static std::atomic<int> nCounter(0);
 
     if( poOpenInfo->nHeaderBytes != 0 )
         return nullptr;
@@ -102,7 +103,7 @@ static GDALDataset *HTTPOpen( GDALOpenInfo * poOpenInfo )
 /* -------------------------------------------------------------------- */
     CPLString osResultFilename;
 
-    int nNewCounter = CPLAtomicInc(&nCounter);
+    int nNewCounter = ++nCounter;
 
     const char* pszFilename = HTTPFetchContentDispositionFilename(psResult->papszHeaders);
     if (pszFilename == nullptr)

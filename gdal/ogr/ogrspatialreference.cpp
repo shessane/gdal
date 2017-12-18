@@ -38,8 +38,8 @@
 #include <limits>
 #include <string>
 #include <vector>
+#include <atomic>
 
-#include "cpl_atomic_ops.h"
 #include "cpl_conv.h"
 #include "cpl_csv.h"
 #include "cpl_error.h"
@@ -295,7 +295,7 @@ OGRSpatialReference::operator=(const OGRSpatialReference &oSource)
 int OGRSpatialReference::Reference()
 
 {
-    return CPLAtomicInc(&nRefCount);
+    return ++nRefCount;
 }
 
 /************************************************************************/
@@ -334,8 +334,8 @@ int OGRSpatialReference::Dereference()
         CPLDebug( "OSR",
                   "Dereference() called on an object with refcount %d,"
                   "likely already destroyed!",
-                  nRefCount );
-    return CPLAtomicDec(&nRefCount);
+                  nRefCount.load() );
+    return --nRefCount;
 }
 
 /************************************************************************/

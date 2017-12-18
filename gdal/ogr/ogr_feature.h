@@ -31,7 +31,8 @@
 #ifndef OGR_FEATURE_H_INCLUDED
 #define OGR_FEATURE_H_INCLUDED
 
-#include "cpl_atomic_ops.h"
+#include <atomic>
+
 #include "ogr_featurestyle.h"
 #include "ogr_geometry.h"
 
@@ -208,7 +209,7 @@ class CPL_DLL OGRFeatureDefn
 {
   protected:
 //! @cond Doxygen_Suppress
-    volatile int nRefCount;
+    std::atomic<int> nRefCount;
 
     int         nFieldCount;
     OGRFieldDefn **papoFieldDefn;
@@ -249,9 +250,9 @@ class CPL_DLL OGRFeatureDefn
 
     virtual OGRFeatureDefn *Clone();
 
-    int         Reference() { return CPLAtomicInc(&nRefCount); }
-    int         Dereference() { return CPLAtomicDec(&nRefCount); }
-    int         GetReferenceCount() { return nRefCount; }
+    int         Reference() { return ++nRefCount; }
+    int         Dereference() { return --nRefCount; }
+    int         GetReferenceCount() { return nRefCount.load(); }
     void        Release();
 
     virtual int         IsGeometryIgnored();

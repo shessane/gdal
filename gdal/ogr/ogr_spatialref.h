@@ -35,6 +35,7 @@
 #include "ogr_srs_api.h"
 
 #include <vector>
+#include <atomic>
 
 /**
  * \file ogr_spatialref.h
@@ -139,7 +140,7 @@ class CPL_DLL OGRSpatialReference
 
     OGR_SRSNode *poRoot;
 
-    int         nRefCount;
+    std::atomic<int>  nRefCount;
     int         bNormInfoSet;
 
     static OGRErr Validate(OGR_SRSNode *poRoot);

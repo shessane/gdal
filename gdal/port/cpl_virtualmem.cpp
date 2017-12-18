@@ -42,7 +42,7 @@
 // TODO(schwehr): Should ucontext.h be included?
 // #include <ucontext.h>
 
-#include "cpl_atomic_ops.h"
+#include <atomic>
 #include "cpl_config.h"
 #include "cpl_conv.h"
 #include "cpl_error.h"
@@ -513,8 +513,8 @@ static void CPLVirtualMemFreeFileMemoryMapped(CPLVirtualMemVMA* ctxt)
 
 #ifndef HAVE_5ARGS_MREMAP
 
-static volatile int nCountThreadsInSigUSR1 = 0;
-static volatile int nWaitHelperThread = 0;
+std::atomic<int> nCountThreadsInSigUSR1 = 0;
+std::atomic<int> nWaitHelperThread = 0;
 
 /************************************************************************/
 /*                   CPLVirtualMemSIGUSR1Handler()                      */
@@ -529,11 +529,11 @@ static void CPLVirtualMemSIGUSR1Handler( int /* signum_unused */,
 #endif
     // Rouault guesses this is only POSIX correct if it is implemented by an
     // intrinsic.
-    CPLAtomicInc(&nCountThreadsInSigUSR1);
+    ++nCountThreadsInSigUSR1;
     while( nWaitHelperThread )
         // Not explicitly indicated as signal-async-safe, but hopefully ok.
         usleep(1);
-    CPLAtomicDec(&nCountThreadsInSigUSR1);
+    --nCountThreadsInSigUSR1;
 #if defined DEBUG_VIRTUALMEM && defined DEBUG_VERBOSE
     fprintfstderr("leaving CPLVirtualMemSIGUSR1Handler %X\n", pthread_self());
 #endif
@@ -735,7 +735,7 @@ void CPLVirtualMemAddPage( CPLVirtualMemVMA* ctxt, void* target_addr,
         if( ctxt->nThreads > 1 )
         {
             /* Pause threads that share this mem view */
-            CPLAtomicInc(&nWaitHelperThread);
+            ++nWaitHelperThread;
 
             /* Install temporary SIGUSR1 signal handler */
             struct sigaction act, oldact;
@@ -788,7 +788,7 @@ void CPLVirtualMemAddPage( CPLVirtualMemVMA* ctxt, void* target_addr,
             }
 
             /* Wake up sleeping threads */
-            CPLAtomicDec(&nWaitHelperThread);
+            --nWaitHelperThread;
             while( nCountThreadsInSigUSR1 != 0 )
                 usleep(1);
 

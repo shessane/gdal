@@ -64,11 +64,12 @@ class GDALAsyncReader;
 #include "cpl_string.h"
 #include "cpl_minixml.h"
 #include "cpl_multiproc.h"
-#include "cpl_atomic_ops.h"
 #include <vector>
 #include <map>
 #include <limits>
 #include <cmath>
+#include <atomic>
+
 #include "ogr_core.h"
 
 //! @cond Doxygen_Suppress
@@ -643,7 +644,7 @@ class CPL_DLL GDALRasterBlock
     GDALDataType        eType;
 
     bool                bDirty;
-    volatile int        nLockCount;
+    std::atomic<int>    nLockCount;
 
     int                 nXOff;
     int                 nYOff;
@@ -675,9 +676,9 @@ class CPL_DLL GDALRasterBlock
     void        MarkDirty( void );
     void        MarkClean( void );
     /** Increment the lock count */
-    int         AddLock( void ) { return CPLAtomicInc(&nLockCount); }
+    int         AddLock( void ) { return ++nLockCount; }
     /** Decrement the lock count */
-    int         DropLock( void ) { return CPLAtomicDec(&nLockCount); }
+    int         DropLock( void ) { return --nLockCount; }
     void        Detach();
 
     CPLErr      Write();
@@ -793,7 +794,7 @@ class CPL_DLL GDALAbstractBandBlockCache
         // Band keep alive counter, and its lock & condition
         CPLCond          *hCond;
         CPLMutex         *hCondMutex;
-        volatile int      nKeepAliveCounter;
+        std::atomic<int>  nKeepAliveCounter;
 
     protected:
         GDALRasterBand   *poBand;

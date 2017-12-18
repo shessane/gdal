@@ -34,8 +34,8 @@
 #include <string.h>
 #include <map>
 #include <utility>
+#include <atomic>
 
-#include "cpl_atomic_ops.h"
 #include "cpl_conv.h"
 #include "cpl_error.h"
 #include "cpl_minixml.h"
@@ -67,7 +67,7 @@ typedef struct
     int       nGCPCount;
     GDAL_GCP *pasGCPList;
 
-    volatile int nRefCount;
+    std::atomic<int> nRefCount;
 
 } TPSTransformInfo;
 
@@ -87,7 +87,7 @@ void* GDALCreateSimilarTPSTransformer( void *hTransformArg,
     {
         // We can just use a ref count, since using the source transformation
         // is thread-safe.
-        CPLAtomicInc(&(psInfo->nRefCount));
+        ++psInfo->nRefCount;
     }
     else
     {
@@ -318,7 +318,7 @@ void GDALDestroyTPSTransformer( void *pTransformArg )
 
     TPSTransformInfo *psInfo = static_cast<TPSTransformInfo *>(pTransformArg);
 
-    if( CPLAtomicDec(&(psInfo->nRefCount)) == 0 )
+    if( --psInfo->nRefCount == 0 )
     {
         delete psInfo->poForward;
         delete psInfo->poReverse;

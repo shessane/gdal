@@ -41,8 +41,8 @@
 
 #include <algorithm>
 #include <string>
+#include <atomic>
 
-#include "cpl_atomic_ops.h"
 #include "cpl_config.h"
 #include "cpl_error.h"
 #include "cpl_multiproc.h"
@@ -1090,12 +1090,12 @@ const char *CPLGenerateTempFilename( const char *pszStem )
     if( pszStem == nullptr )
         pszStem = "";
 
-    static int nTempFileCounter = 0;
+    static std::atomic<int> nTempFileCounter(0);
     CPLString osFilename;
     osFilename.Printf( "%s_%d_%d",
                        pszStem,
                        CPLGetCurrentProcessID(),
-                       CPLAtomicInc( &nTempFileCounter ) );
+                       ++nTempFileCounter );
 
     return CPLFormFilename( pszDir, osFilename, nullptr );
 }

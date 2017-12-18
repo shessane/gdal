@@ -27,9 +27,9 @@
  ****************************************************************************/
 
 #include <assert.h>
+#include <atomic>
 
 #include "cpl_string.h"
-#include "cpl_atomic_ops.h"
 #include "cpl_multiproc.h"
 #include "ogr_spatialref.h"
 
@@ -40,7 +40,7 @@ double* padfRefY;
 double* padfRefResultX;
 double* padfRefResultY;
 OGRCoordinateTransformation *poCT;
-volatile int nIter = 0;
+std::atomic<int> nIter(0);
 int bCreateCTInThread = FALSE;
 OGRSpatialReference oSrcSRS, oDstSRS;
 int nCountIter = 10000;
@@ -59,7 +59,7 @@ void ReprojFunc(void* unused)
         if (bCreateCTInThread)
             poCTInThread = OGRCreateCoordinateTransformation(&oSrcSRS,&oDstSRS);
 
-        CPLAtomicInc(&nIter);
+        ++nIter;
         memcpy(padfResultX, padfRefX, 1024 * sizeof(double));
         memcpy(padfResultY, padfRefY, 1024 * sizeof(double));
         poCT->TransformEx( 1024, padfResultX, padfResultY, nullptr, nullptr );

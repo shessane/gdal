@@ -50,8 +50,8 @@
 #include <cstring>
 #include <ctime>
 #include <algorithm>
+#include <atomic>
 
-#include "cpl_atomic_ops.h"
 #include "cpl_conv.h"
 #include "cpl_error.h"
 #include "cpl_vsi.h"
@@ -83,7 +83,7 @@ struct _CPLLock
 
 #ifdef DEBUG_CONTENTION
     bool     bDebugPerf;
-    volatile int nCurrentHolders;
+    std::atomic<int> nCurrentHolders;
     GUIntBig nStartTime;
     GIntBig  nMaxDiff;
     double   dfAvgDiff;
@@ -2408,7 +2408,7 @@ int   CPLCreateOrAcquireLock( CPLLock** ppsLock, CPLLockType eType )
             return FALSE;
     }
 #ifdef DEBUG_CONTENTION
-    if( ret && CPLAtomicInc(&((*ppsLock)->nCurrentHolders)) == 1 )
+    if( ret && ++((*ppsLock)->nCurrentHolders) == 1 )
     {
         if( (*ppsLock)->bDebugPerf )
         {
@@ -2436,7 +2436,7 @@ int CPLAcquireLock( CPLLock* psLock )
     else
         ret =  CPLAcquireMutex( psLock->u.hMutex, 1000 );
 #ifdef DEBUG_CONTENTION
-    if( ret && CPLAtomicInc(&(psLock->nCurrentHolders)) == 1 )
+    if( ret && ++(psLock->nCurrentHolders) == 1 )
     {
         if( psLock->bDebugPerf )
         {
@@ -2458,7 +2458,7 @@ void CPLReleaseLock( CPLLock* psLock )
     GIntBig nMaxDiff = 0;
     double dfAvgDiff = 0;
     GUIntBig nIters = 0;
-    if( CPLAtomicDec(&(psLock->nCurrentHolders)) == 0 &&
+    if( --(psLock->nCurrentHolders) == 0 &&
         psLock->bDebugPerf &&
         psLock->nStartTime )
     {

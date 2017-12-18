@@ -34,8 +34,8 @@
 
 #include <climits>
 #include <cstring>
+#include <atomic>
 
-#include "cpl_atomic_ops.h"
 #include "cpl_conv.h"
 #include "cpl_error.h"
 #include "cpl_multiproc.h"
@@ -52,7 +52,7 @@ static volatile GIntBig nCacheUsed = 0;
 static GDALRasterBlock *poOldest = nullptr;  // Tail.
 static GDALRasterBlock *poNewest = nullptr;  // Head.
 
-static int nDisableDirtyBlockFlushCounter = 0;
+static std::atomic<int> nDisableDirtyBlockFlushCounter(0);
 
 #if 0
 static CPLMutex *hRBLock = NULL;
@@ -441,8 +441,8 @@ int GDALRasterBlock::FlushCacheBlock( int bDirtyBlocksOnly )
             if( !bDirtyBlocksOnly ||
                 (poTarget->GetDirty() && nDisableDirtyBlockFlushCounter == 0) )
             {
-                if( CPLAtomicCompareAndExchange(
-                        &(poTarget->nLockCount), 0, -1) )
+				int test = 0;
+                if( poTarget->nLockCount.compare_exchange_strong(test, -1) )
                     break;
             }
             poTarget = poTarget->poPrevious;
@@ -530,7 +530,7 @@ void GDALRasterBlock::FlushDirtyBlocks()
 
 void GDALRasterBlock::EnterDisableDirtyBlockFlush()
 {
-    CPLAtomicInc(&nDisableDirtyBlockFlushCounter);
+    ++nDisableDirtyBlockFlushCounter;
 }
 
 /************************************************************************/
@@ -547,7 +547,7 @@ void GDALRasterBlock::EnterDisableDirtyBlockFlush()
 
 void GDALRasterBlock::LeaveDisableDirtyBlockFlush()
 {
-    CPLAtomicDec(&nDisableDirtyBlockFlushCounter);
+    --nDisableDirtyBlockFlushCounter;
 }
 
 /************************************************************************/
@@ -953,8 +953,8 @@ CPLErr GDALRasterBlock::Internalize()
                     if( !poTarget->GetDirty() ||
                         nDisableDirtyBlockFlushCounter == 0 )
                     {
-                        if( CPLAtomicCompareAndExchange(
-                                &(poTarget->nLockCount), 0, -1) )
+						int test = 0;
+                        if( poTarget->nLockCount.compare_exchange_strong(test, -1) )
                             break;
                     }
                     poTarget = poTarget->poPrevious;
@@ -1158,7 +1158,8 @@ int GDALRasterBlock::DropLockForRemovalFromStorage()
 {
     // Detect potential conflict with GDALRasterBlock::Internalize()
     // or FlushCacheBlock()
-    if( CPLAtomicCompareAndExchange(&nLockCount, 0, -1) )
+	int test = 0;
+    if( nLockCount.compare_exchange_strong(test, -1) )
         return TRUE;
 #ifdef DEBUG
     CPLDebug(
@@ -1191,7 +1192,7 @@ void GDALRasterBlock::DumpAll()
 
 void GDALRasterBlock::DumpBlock()
 {
-    printf("  Lock count = %d\n", nLockCount);/*ok*/
+    printf("  Lock count = %d\n", nLockCount.load());/*ok*/
     printf("  bDirty = %d\n", static_cast<int>(bDirty));/*ok*/
     printf("  nXOff = %d\n", nXOff);/*ok*/
     printf("  nYOff = %d\n", nYOff);/*ok*/

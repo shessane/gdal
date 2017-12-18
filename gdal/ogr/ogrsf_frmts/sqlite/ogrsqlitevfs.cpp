@@ -26,7 +26,8 @@
  * DEALINGS IN THE SOFTWARE.
  ****************************************************************************/
 
-#include "cpl_atomic_ops.h"
+#include <atomic>
+
 #include "ogr_sqlite.h"
 
 CPL_CVSID("$Id$")
@@ -45,7 +46,7 @@ typedef struct
     sqlite3_vfs               *pDefaultVFS;
     pfnNotifyFileOpenedType    pfn;
     void                      *pfnUserData;
-    int                        nCounter;
+    std::atomic<int>           nCounter;
 } OGRSQLiteVFSAppDataStruct;
 
 #define GET_UNDERLYING_VFS(pVFS)  ((OGRSQLiteVFSAppDataStruct* )pVFS->pAppData)->pDefaultVFS
@@ -234,7 +235,7 @@ static int OGRSQLiteVFSOpen(sqlite3_vfs* pVFS,
     if (zName == nullptr)
     {
         zName = CPLSPrintf("/vsimem/sqlite/%p_%d",
-                           pVFS, CPLAtomicInc(&(pAppData->nCounter)));
+                           pVFS, ++pAppData->nCounter);
     }
 
     OGRSQLiteFileStruct* pMyFile = (OGRSQLiteFileStruct*) pFile;

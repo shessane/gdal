@@ -42,8 +42,8 @@
 #endif
 
 #include <vector>
+#include <atomic>
 
-#include "cpl_atomic_ops.h"
 #include "cpl_multiproc.h"
 #include "cpl_string.h"
 #include "gdal_frmts.h"
@@ -487,7 +487,7 @@ public:
     JP2OpenJPEGDataset* poGDS;
     int                 nBand;
     std::vector< std::pair<int, int> > oPairs;
-    volatile int        nCurPair;
+    std::atomic<int>    nCurPair;
     int                 nBandCount;
     int                *panBandMap;
     VOLATILE_BOOL       bSuccess;
@@ -512,7 +512,7 @@ void JP2OpenJPEGDataset::JP2OpenJPEGReadBlockInThread(void* userdata)
         return;
     }
 
-    while( (nPair = CPLAtomicInc(&(poJob->nCurPair))) < nPairs ||
+    while( (nPair = ++poJob->nCurPair) < nPairs ||
            !poJob->bSuccess )
     {
         int nBlockXOff = poJob->oPairs[nPair].first;
